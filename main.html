@@ -18,7 +18,7 @@
 </head>
 <body>
 
-<div id="mainDashboard" class="container-fluid py-4">
+<div class="container-fluid py-4">
     
     <!-- الهيدر واللوجو -->
     <div class="row bg-white p-3 shadow-sm rounded-3 mb-4 align-items-center">
@@ -29,7 +29,7 @@
             <input type="file" id="logoInput" accept="image/*" style="display:none;" onchange="uploadLogo(event)">
         </div>
         <div class="col-md-10 text-center">
-            <h2 id="companyTitle" class="fw-bold m-0 text-primary">شركة الخطوط البحرية - البصرة / المحمرة</h2>
+            <h2 class="fw-bold m-0 text-primary">شركة الخطوط البحرية - البصرة / المحمرة</h2>
             <small class="text-muted fw-bold">سعة السفينة: 235 مسافر | نظام الحجز الإلكتروني الموحد</small>
         </div>
     </div>
@@ -112,8 +112,7 @@
                             </select>
                         </div>
 
-                        <button type="button" onclick="savePassenger()" id="submitBtn" class="btn btn-success w-100 fw-bold"><i class="fa-solid fa-plus"></i> تأكيد الحجز</button>
-                        <button type="button" id="cancelEditBtn" onclick="resetForm()" class="btn btn-secondary w-100 fw-bold mt-2" style="display:none;">إلغاء التعديل</button>
+                        <button type="button" onclick="addNewPassenger()" class="btn btn-success w-100 fw-bold py-2"><i class="fa-solid fa-plus"></i> تأكيد الحجز الآن</button>
                     </div>
                 </div>
             </div>
@@ -130,7 +129,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle" id="manifestTable">
+                        <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
                                     <th>#</th>
@@ -152,13 +151,13 @@
     </div>
 </div>
 
-<!-- نافذة التذكرة للطباعة والباركد -->
+<!-- نافذة التذكرة للطباعة والباركود -->
 <div class="modal fade" id="ticketModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-body text-center ticket-box" id="printableTicket">
+            <div class="modal-body text-center ticket-box">
                 <img id="tLogo" src="" style="max-height:60px;" class="mb-2">
-                <h4 id="tCompany" class="fw-bold text-primary">شركة الخطوط البحرية</h4>
+                <h4 class="fw-bold text-primary">شركة الخطوط البحرية</h4>
                 <p class="text-muted small m-0">تذكرة سفر بحرية مؤكدة</p>
                 <hr>
                 <div class="text-start fs-6 lh-lg px-3">
@@ -182,20 +181,14 @@
     let passengers = [];
     let logoData = 'https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة';
 
-    function loadInitialData() {
-        try {
-            let stored = localStorage.getItem('passengers_data');
-            if (stored) passengers = JSON.parse(stored);
-            let storedLogo = localStorage.getItem('company_logo');
-            if (storedLogo) logoData = storedLogo;
-        } catch (e) {
-            passengers = [];
-        }
+    window.onload = function() {
+        let stored = localStorage.getItem('passengers_data');
+        if (stored) passengers = JSON.parse(stored);
+        let storedLogo = localStorage.getItem('company_logo');
+        if (storedLogo) logoData = storedLogo;
         document.getElementById('companyLogo').src = logoData;
         renderTable();
-    }
-
-    window.onload = loadInitialData;
+    };
 
     function uploadLogo(event) {
         let reader = new FileReader();
@@ -209,74 +202,42 @@
         }
     }
 
-    function savePassenger() {
-        let nameInput = document.getElementById('pName').value.trim();
-        let passportInput = document.getElementById('pPassport').value.trim();
-        let sellInput = document.getElementById('pSellPrice').value;
-        let costInput = document.getElementById('pCostPrice').value;
+    function addNewPassenger() {
+        let nameVal = document.getElementById('pName').value.trim();
+        let passVal = document.getElementById('pPassport').value.trim();
+        let sellVal = document.getElementById('pSellPrice').value;
+        let costVal = document.getElementById('pCostPrice').value;
+        let tripVal = document.getElementById('tripSelect').value;
+        let sourceVal = document.getElementById('pSource').value;
 
-        if (!nameInput || !passportInput) {
-            alert('يرجى كتابة اسم المسافر ورقم الجواز بصورة صحيحة!');
+        if (nameVal === "" || passVal === "") {
+            alert("يرجى كتابة اسم المسافر ورقم الجواز بصورة صحيحة!");
             return;
         }
 
-        let editId = document.getElementById('editPassengerId').value;
-        let tripVal = document.getElementById('tripSelect').value;
-        
-        let passengerData = {
-            id: editId ? Number(editId) : Date.now(),
+        let newPassenger = {
+            id: Date.now(),
             trip: tripVal,
-            name: nameInput,
-            passport: passportInput,
-            sell: sellInput,
-            cost: costInput,
-            source: document.getElementById('pSource').value,
+            name: nameVal,
+            passport: passVal,
+            sell: sellVal,
+            cost: costVal,
+            source: sourceVal,
             date: new Date().toLocaleDateString('ar-IQ')
         };
 
-        if (editId) {
-            let index = passengers.findIndex(p => p.id === Number(editId));
-            if (index !== -1) passengers[index] = passengerData;
-        } else {
-            passengers.push(passengerData);
-        }
-
+        passengers.push(newPassenger);
         localStorage.setItem('passengers_data', JSON.stringify(passengers));
-        resetForm();
+        
+        // تفريغ الحقول وإعادة تحديث الجدول
+        document.getElementById('pName').value = "";
+        document.getElementById('pPassport').value = "";
         renderTable();
-        alert('تم تأكيد الحجز بنجاح!');
-    }
-
-    function editPassenger(id) {
-        let p = passengers.find(item => item.id === id);
-        if (!p) return;
-
-        document.getElementById('editPassengerId').value = p.id;
-        document.getElementById('tripSelect').value = p.trip;
-        document.getElementById('pName').value = p.name;
-        document.getElementById('pPassport').value = p.passport;
-        document.getElementById('pSellPrice').value = p.sell;
-        document.getElementById('pCostPrice').value = p.cost;
-        document.getElementById('pSource').value = p.source;
-
-        document.getElementById('submitBtn').innerHTML = '<i class="fa-solid fa-pen"></i> حفظ التعديل';
-        document.getElementById('submitBtn').className = 'btn btn-warning w-100 fw-bold';
-        document.getElementById('cancelEditBtn').style.display = 'block';
-    }
-
-    function resetForm() {
-        document.getElementById('editPassengerId').value = '';
-        document.getElementById('pName').value = '';
-        document.getElementById('pPassport').value = '';
-        document.getElementById('pSellPrice').value = '35000';
-        document.getElementById('pCostPrice').value = '25000';
-        document.getElementById('submitBtn').innerHTML = '<i class="fa-solid fa-plus"></i> تأكيد الحجز';
-        document.getElementById('submitBtn').className = 'btn btn-success w-100 fw-bold';
-        document.getElementById('cancelEditBtn').style.display = 'none';
+        alert("تم إضافة وحجز المسافر بنجاح!");
     }
 
     function deletePassenger(id) {
-        if (confirm('هل أنت متأكد من حذف هذا المسافر؟')) {
+        if (confirm("هل أنت متأكد من حذف هذا المسافر؟")) {
             passengers = passengers.filter(p => p.id !== id);
             localStorage.setItem('passengers_data', JSON.stringify(passengers));
             renderTable();
@@ -288,10 +249,10 @@
         let selectedTrip = document.getElementById('tripSelect').value;
         tbody.innerHTML = '';
 
-        let filteredPassengers = passengers.filter(p => p.trip === selectedTrip);
+        let filtered = passengers.filter(p => p.trip === selectedTrip);
         let totalSell = 0, totalCost = 0;
 
-        filteredPassengers.forEach((p, index) => {
+        filtered.forEach((p, index) => {
             totalSell += Number(p.sell);
             totalCost += Number(p.cost);
 
@@ -306,14 +267,13 @@
                     <td><small class="text-muted">${p.source}</small></td>
                     <td class="no-print">
                         <button onclick="printTicket(${p.id})" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-qrcode"></i> التذكرة</button>
-                        <button onclick="editPassenger(${p.id})" class="btn btn-outline-warning btn-sm"><i class="fa-solid fa-pen"></i></button>
                         <button onclick="deletePassenger(${p.id})" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `;
         });
 
-        document.getElementById('statTodayPassengers').innerText = ${filteredPassengers.length} / 235;
+        document.getElementById('statTodayPassengers').innerText = ${filtered.length} / 235;
         document.getElementById('statTodaySales').innerText = ${totalSell.toLocaleString()} د.ع;
         document.getElementById('statTodayCost').innerText = ${totalCost.toLocaleString()} د.ع;
         document.getElementById('statTodayProfit').innerText = ${(totalSell - totalCost).toLocaleString()} د.ع;
@@ -346,14 +306,14 @@
 
     function exportToExcel() {
         let selectedTrip = document.getElementById('tripSelect').value;
-        let filteredPassengers = passengers.filter(p => p.trip === selectedTrip);
+        let filtered = passengers.filter(p => p.trip === selectedTrip);
 
-        if (filteredPassengers.length === 0) {
+        if (filtered.length === 0) {
             alert('لا يوجد مسافرين في هذه الرحلة لتصديرهم!');
             return;
         }
 
-        let excelData = filteredPassengers.map((p, index) => ({
+        let excelData = filtered.map((p, index) => ({
             "ت": index + 1,
             "اسم المسافر": p.name,
             "رقم الجواز": p.passport,
