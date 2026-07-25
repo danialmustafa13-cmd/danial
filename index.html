@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام حجز السفينة - البصرة / المحمرة</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .header-logo { max-height: 80px; cursor: pointer; }
+        .ticket-box { border: 2px dashed #0d6efd; padding: 25px; background: #fff; border-radius: 12px; }
+        .stat-card { background: #fff; border-radius: 10px; padding: 15px; border-right: 5px solid #0d6efd; shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen" class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <div class="card shadow-lg border-0 rounded-3">
+                <div class="card-body p-4 text-center">
+                    <i class="fa-solid fa-ship fa-3x text-primary mb-3"></i>
+                    <h4 class="card-title fw-bold mb-3">تسجيل الدخول للنظام</h4>
+                    <p class="text-muted small">مكتب البصرة / مكتب المحمرة</p>
+                    <input type="text" id="username" class="form-control mb-3" placeholder="اسم المستخدم (مثل: basra_office)">
+                    <input type="password" id="password" class="form-control mb-3" placeholder="كلمة المرور">
+                    <button onclick="login()" class="btn btn-primary w-100 fw-bold">دخول للنظام</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="mainDashboard" class="container-fluid py-4" style="display:none;">
+    
+    <div class="row bg-white p-3 shadow-sm rounded-3 mb-4 align-items-center">
+        <div class="col-md-2 text-center">
+            <label for="logoInput" style="cursor: pointer;">
+                <img id="companyLogo" src="https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة" class="header-logo rounded" title="اضغط لتغيير اللوجو">
+            </label>
+            <input type="file" id="logoInput" accept="image/*" style="display:none;" onchange="uploadLogo(event)">
+        </div>
+        <div class="col-md-8 text-center">
+            <h2 id="companyTitle" class="fw-bold m-0 text-primary">شركة الخطوط البحرية - البصرة / المحمرة</h2>
+            <small class="text-muted fw-bold">سعة السفينة: 235 مسافر | نظام الحجز الإلكتروني الموحد</small>
+        </div>
+        <div class="col-md-2 text-end no-print">
+            <button onclick="logout()" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-right-from-bracket"></i> خروج</button>
+        </div>
+    </div>
+
+    <div class="row mb-4 no-print">
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm">
+                <small class="text-muted">إجمالي حروص اليوم</small>
+                <h4 class="fw-bold text-primary m-0" id="statTodayPassengers">0 / 235</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm" style="border-right-color: #198754;">
+                <small class="text-muted">إجمالي مبيعات اليوم (IQD)</small>
+                <h4 class="fw-bold text-success m-0" id="statTodaySales">0 د.ع</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm" style="border-right-color: #ffc107;">
+                <small class="text-muted">إجمالي التسديد اليوم (IQD)</small>
+                <h4 class="fw-bold text-warning m-0" id="statTodayCost">0 د.ع</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm" style="border-right-color: #0dcaf0;">
+                <small class="text-muted">صافي أرباح اليوم</small>
+                <h4 class="fw-bold text-info m-0" id="statTodayProfit">0 د.ع</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 no-print">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-primary text-white fw-bold"><i class="fa-solid fa-ticket"></i> حجز / تعديل تذكرة</div>
+                <div class="card-body">
+                    <form id="bookingForm" onsubmit="savePassenger(event)">
+                        <input type="hidden" id="editPassengerId" value="">
+                        
+                        <div class="mb-2">
+                            <label class="form-label fw-bold">اختر الرحلة وموعد السفر:</label>
+                            <select id="tripSelect" class="form-select" onchange="filterManifestByTrip()" required>
+                                <option value="1">رحلة 1: البصرة ← المحمرة (08:00 صباحاً)</option>
+                                <option value="2">رحلة 2: المحمرة ← البصرة (11:00 صباحاً)</option>
+                                <option value="3">رحلة 3: البصرة ← المحمرة (02:00 ظهراً)</option>
+                                <option value="4">رحلة 4: المحمرة ← البصرة (05:00 عصراً)</option>
+                                <option value="5">رحلة 5: البصرة ← المحمرة (08:00 مساءً)</option>
+                                <option value="6">رحلة 6: المحمرة ← البصرة (11:00 مساءً)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label class="form-label">اسم المسافر الثلاثي:</label>
+                            <input type="text" id="pName" class="form-control" placeholder="أدخل اسم المسافر" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">رقم الجواز:</label>
+                            <input type="text" id="pPassport" class="form-control" placeholder="أدخل رقم الجواز" required>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label">سعر البيع (IQD):</label>
+                                <input type="number" id="pSellPrice" class="form-control" value="35000" required>
+                            </div>
+                            <div class="col">
+                                <label class="form-label">سعر التسديد (IQD):</label>
+                                <input type="number" id="pCostPrice" class="form-control" value="25000" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">مصدر الحجز / المكتب:</label>
+                            <select id="pSource" class="form-select">
+                                <option value="مكتب البصرة الرئيسي">مكتب البصرة الرئيسي</option>
+                                <option value="مكتب المحمرة">مكتب المحمرة</option>
+                                <option value="شركة سياحة خارجية">شركة سياحة خارجية</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="btn btn-success w-100 fw-bold"><i class="fa-solid fa-plus"></i> تأكيد الحجز</button>
+                        <button type="button" id="cancelEditBtn" onclick="resetForm()" class="btn btn-secondary w-100 fw-bold mt-2" style="display:none;">إلغاء التعديل</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-bold"><i class="fa-solid fa-list"></i> قائمة منفيست المسافرين</span>
+                    <div>
+                        <button onclick="exportToExcel()" class="btn btn-success btn-sm fw-bold"><i class="fa-solid fa-file-excel"></i> طبع منفيست Excel</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle" id="manifestTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم المسافر</th>
+                                    <th>رقم الجواز</th>
+                                    <th>الرحلة</th>
+                                    <th>سعر البيع</th>
+                                    <th>سعر التسديد</th>
+                                    <th>المصدر</th>
+                                    <th class="no-print">خيارات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="passengerList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="ticketModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center ticket-box" id="printableTicket">
+                <img id="tLogo" src="" style="max-height:60px;" class="mb-2">
+                <h4 id="tCompany" class="fw-bold text-primary">شركة الخطوط البحرية</h4>
+                <p class="text-muted small m-0">تذكرة سفر بحرية مؤكدة</p>
+                <hr>
+                <div class="text-start fs-6 lh-lg px-3">
+                    <p class="m-0"><strong>اسم المسافر:</strong> <span id="tName"></span></p>
+                    <p class="m-0"><strong>رقم الجواز:</strong> <span id="tPassport"></span></p>
+                    <p class="m-0"><strong>الرحلة وموعد السفر:</strong> <span id="tTrip"></span></p>
+                    <p class="m-0"><strong>المصدر:</strong> <span id="tSource"></span></p>
+                    <p class="m-0"><strong>سعر التذكرة:</strong> <span id="tPrice"></span> د.ع</p>
+                </div>
+                <div id="qrcode" class="d-flex justify-content-center my-3"></div>
+                <small class="text-muted">امسح الكود بالتلفون للتحقق من صحة التذكرة</small>
+            </div>
+            <div class="modal-footer no-print">
+                <button onclick="window.print()" class="btn btn-primary fw-bold"><i class="fa-solid fa-print"></i> طباعة / حفظ التذكرة PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let passengers = JSON.parse(localStorage.getItem('passengers_data')) || [];
+    let logoData = localStorage.getItem('company_logo') || 'https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة';
+
+    document.ondomcontentready = function() {
+        document.getElementById('companyLogo').src = logoData;
+    };
+
+    function login() {
+        let u = document.getElementById('username').value;
+        let p = document.getElementById('password').value;
+        if (u && p) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'block';
+            document.getElementById('companyLogo').src = logoData;
+            renderTable();
+        } else {
+            alert('يرجى كتابة اسم المستخدم وكلمة المرور');
+        }
+    }
+
+    function logout() {
+        location.reload();
+    }
+
+    function uploadLogo(event) {
+        let reader = new FileReader();
+        reader.onload = function() {
+            logoData = reader.result;
+            document.getElementById('companyLogo').src = logoData;
+            localStorage.setItem('company_logo', logoData);
+        };
+        reader.readAsDataURL(event.target.files[0]);
+    }
+
+    function savePassenger(e) {
+        e.preventDefault();
+        let editId = document.getElementById('editPassengerId').value;
+        
+        let passengerData = {
+            id: editId ? Number(editId) : Date.now(),
+            trip: document.getElementById('tripSelect').value,
+            name: document.getElementById('pName').value,
+            passport: document.getElementById('pPassport').value,
+            sell: document.getElementById('pSellPrice').value,
+            cost: document.getElementById('pCostPrice').value,
+            source: document.getElementById('pSource').value,
+            date: new Date().toLocaleDateString('ar-IQ')
+        };
+
+        if (editId) {
+            let index = passengers.findIndex(p => p.id === Number(editId));
+            passengers[index] = passengerData;
+        } else {
+            passengers.push(passengerData);
+        }
+
+        localStorage.setItem('passengers_data', JSON.stringify(passengers));
+        resetForm();
+        renderTable();
+    }
+
+    function editPassenger(id) {
+        let p = passengers.find(item => item.id === id);
+        document.getElementById('editPassengerId').value = p.id;
+        document.getElementById('tripSelect').value = p.trip;
+        document.getElementById('pName').value = p.name;
+        document.getElementById('pPassport').value = p.passport;
+        document.getElementById('pSellPrice').value = p.sell;
+        document.getElementById('pCostPrice').value = p.cost;
+        document.getElementById('pSource').value = p.source;
+
+        document.getElementById('submitBtn').innerHTML = '<i class="fa-solid fa-pen"></i> حفظ التعديل';
+        document.getElementById('submitBtn').className = 'btn btn-warning w-100 fw-bold';
+        document.getElementById('cancelEditBtn').style.display = 'block';
+    }
+
+    function resetForm() {
+        document.getElementById('editPassengerId').value = '';
+        document.getElementById('bookingForm').reset();
+        document.getElementById('submitBtn').innerHTML = '<i class="fa-solid fa-plus"></i> تأكيد الحجز';
+        document.getElementById('submitBtn').className = 'btn btn-success w-100 fw-bold';
+        document.getElementById('cancelEditBtn').style.display = 'none';
+    }
+
+    function deletePassenger(id) {
+        if (confirm('هل أنت تأكد من حذف هذا المسافر؟')) {
+            passengers = passengers.filter(p => p.id !== id);
+            localStorage.setItem('passengers_data', JSON.stringify(passengers));
+            renderTable();
+        }
+    }
+
+    function renderTable() {
+        let tbody = document.getElementById('passengerList');
+        let selectedTrip = document.getElementById('tripSelect').value;
+        tbody.innerHTML = '';
+
+        let filteredPassengers = passengers.filter(p => p.trip === selectedTrip);
+        let totalSell = 0, totalCost = 0;
+
+        filteredPassengers.forEach((p, index) => {
+            totalSell += Number(p.sell);
+            totalCost += Number(p.cost);
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="fw-bold">${p.name}</td>
+                    <td>${p.passport}</td>
+                    <td><span class="badge bg-info text-dark">رحلة ${p.trip}</span></td>
+                    <td class="text-success fw-bold">${Number(p.sell).toLocaleString()} د.ع</td>
+                    <td class="text-warning fw-bold">${Number(p.cost).toLocaleString()} د.ع</td>
+                    <td><small class="text-muted">${p.source}</small></td>
+                    <td class="no-print">
+                        <button onclick="printTicket(${p.id})" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-qrcode"></i> التذكرة</button>
+                        <button onclick="editPassenger(${p.id})" class="btn btn-outline-warning btn-sm"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deletePassenger(${p.id})" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        // تحديث إحصائيات التقارير اليومية
+        document.getElementById('statTodayPassengers').innerText = ${filteredPassengers.length} / 235;
+        document.getElementById('statTodaySales').innerText = ${totalSell.toLocaleString()} د.ع;
+        document.getElementById('statTodayCost').innerText = ${totalCost.toLocaleString()} د.ع;
+        document.getElementById('statTodayProfit').innerText = ${(totalSell - totalCost).toLocaleString()} د.ع;
+    }
+
+    function filterManifestByTrip() {
+        renderTable();
+    }
+
+    function printTicket(id) {
+        let p = passengers.find(item => item.id === id);
+        document.getElementById('tName').innerText = p.name;
+        document.getElementById('tPassport').innerText = p.passport;
+        document.getElementById('tTrip').innerText = رحلة ${p.trip};
+        document.getElementById('tSource').innerText = p.source;
+        document.getElementById('tPrice').innerText = Number(p.sell).toLocaleString();
+        document.getElementById('tLogo').src = logoData;
+
+        // توليد الـ QR Code للتلفون
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), {
+            text: TICKET-ID:${p.id}\nNAME:${p.name}\nPASSPORT:${p.passport}\nTRIP:${p.trip},
+            width: 130,
+            height: 130
+        });
+
+        var myModal = new bootstrap.Modal(document.getElementById('ticketModal'));
+        myModal.show();
+    }
+
+    function exportToExcel() {
+        let selectedTrip = document.getElementById('tripSelect').value;
+        let filteredPassengers = passengers.filter(p => p.trip === selectedTrip);
+
+        if (filteredPassengers.length === 0) {
+            alert('لا يوجد مسافرين في هذه الرحلة لتصديرهم!');
+            return;
+        }
+
+        let excelData = filteredPassengers.map((p, index) => ({
+            "ت": index + 1,
+            "اسم المسافر": p.name,
+            "رقم الجواز": p.passport,
+            "رقم الرحلة": رحلة ${p.trip},
+            "سعر البيع (IQD)": Number(p.sell),
+            "سعر التسديد (IQD)": Number(p.cost),
+            "المصدر": p.source,
+            "تاريخ الحجز": p.date
+        }));
+
+        let ws = XLSX.utils.json_to_sheet(excelData);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, منفيست_رحلة_${selectedTrip});
+        XLSX.writeFile(wb, Manifest_Trip_${selectedTrip}.xlsx);
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
