@@ -19,10 +19,9 @@
 </head>
 <body>
 
-<!-- لوحة التحكم الرئيسية (تفتح مباشرة) -->
 <div id="mainDashboard" class="container-fluid py-4">
     
-    <!-- هيدر وايقونة فورمة الشركة -->
+    <!-- الهيدر واللوجو -->
     <div class="row bg-white p-3 shadow-sm rounded-3 mb-4 align-items-center">
         <div class="col-md-2 text-center">
             <label for="logoInput" style="cursor: pointer;">
@@ -36,7 +35,7 @@
         </div>
     </div>
 
-    <!-- كروت التقارير واللوحة المالية -->
+    <!-- كروت التقارير المالية والعدد -->
     <div class="row mb-4 no-print">
         <div class="col-md-3">
             <div class="stat-card shadow-sm">
@@ -65,17 +64,17 @@
     </div>
 
     <div class="row">
-        <!-- استمارة الحجز والتعديل -->
+        <!-- استمارة إدخال الحجز -->
         <div class="col-md-4 no-print">
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-primary text-white fw-bold"><i class="fa-solid fa-ticket"></i> حجز / تعديل تذكرة</div>
                 <div class="card-body">
-                    <form id="bookingForm" onsubmit="savePassenger(event)">
+                    <form id="bookingForm" onsubmit="event.preventDefault(); savePassenger();">
                         <input type="hidden" id="editPassengerId" value="">
                         
                         <div class="mb-2">
                             <label class="form-label fw-bold">اختر الرحلة وموعد السفر:</label>
-                            <select id="tripSelect" class="form-select" onchange="filterManifestByTrip()" required>
+                            <select id="tripSelect" class="form-select" onchange="renderTable()" required>
                                 <option value="1">رحلة 1: البصرة ← المحمرة (08:00 صباحاً)</option>
                                 <option value="2">رحلة 2: المحمرة ← البصرة (11:00 صباحاً)</option>
                                 <option value="3">رحلة 3: البصرة ← المحمرة (02:00 ظهراً)</option>
@@ -121,7 +120,7 @@
             </div>
         </div>
 
-        <!-- عرض المنفيست وتصدير Excel خاص بكل رحلة -->
+        <!-- جدول المنفيست -->
         <div class="col-md-8">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
@@ -154,7 +153,7 @@
     </div>
 </div>
 
-<!-- نافذة التذكرة الـ PDF والباركود (QR Code) -->
+<!-- نافذة التذكرة للطباعة والباركد -->
 <div class="modal fade" id="ticketModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -199,15 +198,22 @@
         reader.readAsDataURL(event.target.files[0]);
     }
 
-    function savePassenger(e) {
-        e.preventDefault();
+    function savePassenger() {
+        let nameInput = document.getElementById('pName').value.trim();
+        let passportInput = document.getElementById('pPassport').value.trim();
+
+        if (!nameInput || !passportInput) {
+            alert('يرجى ملء جميع الحقول المطلوبة!');
+            return;
+        }
+
         let editId = document.getElementById('editPassengerId').value;
         
         let passengerData = {
             id: editId ? Number(editId) : Date.now(),
             trip: document.getElementById('tripSelect').value,
-            name: document.getElementById('pName').value,
-            passport: document.getElementById('pPassport').value,
+            name: nameInput,
+            passport: passportInput,
             sell: document.getElementById('pSellPrice').value,
             cost: document.getElementById('pCostPrice').value,
             source: document.getElementById('pSource').value,
@@ -216,7 +222,7 @@
 
         if (editId) {
             let index = passengers.findIndex(p => p.id === Number(editId));
-            passengers[index] = passengerData;
+            if (index !== -1) passengers[index] = passengerData;
         } else {
             passengers.push(passengerData);
         }
@@ -228,6 +234,8 @@
 
     function editPassenger(id) {
         let p = passengers.find(item => item.id === id);
+        if (!p) return;
+
         document.getElementById('editPassengerId').value = p.id;
         document.getElementById('tripSelect').value = p.trip;
         document.getElementById('pName').value = p.name;
@@ -243,7 +251,10 @@
 
     function resetForm() {
         document.getElementById('editPassengerId').value = '';
-        document.getElementById('bookingForm').reset();
+        document.getElementById('pName').value = '';
+        document.getElementById('pPassport').value = '';
+        document.getElementById('pSellPrice').value = '35000';
+        document.getElementById('pCostPrice').value = '25000';
         document.getElementById('submitBtn').innerHTML = '<i class="fa-solid fa-plus"></i> تأكيد الحجز';
         document.getElementById('submitBtn').className = 'btn btn-success w-100 fw-bold';
         document.getElementById('cancelEditBtn').style.display = 'none';
@@ -293,12 +304,10 @@
         document.getElementById('statTodayProfit').innerText = ${(totalSell - totalCost).toLocaleString()} د.ع;
     }
 
-    function filterManifestByTrip() {
-        renderTable();
-    }
-
     function printTicket(id) {
         let p = passengers.find(item => item.id === id);
+        if(!p) return;
+
         document.getElementById('tName').innerText = p.name;
         document.getElementById('tPassport').innerText = p.passport;
         document.getElementById('tTrip').innerText = رحلة ${p.trip};
