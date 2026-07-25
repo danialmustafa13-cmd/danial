@@ -26,7 +26,7 @@
             <label for="logoInput" style="cursor: pointer;">
                 <img id="companyLogo" src="https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة" class="header-logo rounded" title="اضغط لتغيير اللوجو">
             </label>
-            <input type="file" id="logoInput" accept="image/*" style="display:none;" onchange="uploadLogo(event)">
+            <input type="file" id="logoInput" accept="image/*" style="display:none;">
         </div>
         <div class="col-md-10 text-center">
             <h2 class="fw-bold m-0 text-primary">شركة الخطوط البحرية - البصرة / المحمرة</h2>
@@ -66,14 +66,12 @@
         <!-- استمارة إدخال الحجز -->
         <div class="col-md-4 no-print">
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-primary text-white fw-bold"><i class="fa-solid fa-ticket"></i> حجز / تعديل تذكرة</div>
+                <div class="card-header bg-primary text-white fw-bold"><i class="fa-solid fa-ticket"></i> حجز تذكرة جديدة</div>
                 <div class="card-body">
                     <div>
-                        <input type="hidden" id="editPassengerId" value="">
-                        
                         <div class="mb-2">
                             <label class="form-label fw-bold">اختر الرحلة وموعد السفر:</label>
-                            <select id="tripSelect" class="form-select" onchange="renderTable()">
+                            <select id="tripSelect" class="form-select">
                                 <option value="1">رحلة 1: البصرة ← المحمرة (04:00 عصراً - 2026/07/27)</option>
                                 <option value="2">رحلة 2: المحمرة ← البصرة (10:00 صباحاً - 2026/07/27)</option>
                                 <option value="3">رحلة 3: البصرة ← المحمرة (02:00 ظهراً)</option>
@@ -112,7 +110,7 @@
                             </select>
                         </div>
 
-                        <button type="button" onclick="addNewPassenger()" class="btn btn-success w-100 fw-bold py-2"><i class="fa-solid fa-plus"></i> تأكيد الحجز الآن</button>
+                        <button type="button" id="submitBtn" class="btn btn-success w-100 fw-bold py-2"><i class="fa-solid fa-plus"></i> تأكيد الحجز الآن</button>
                     </div>
                 </div>
             </div>
@@ -124,7 +122,7 @@
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
                     <span class="fw-bold"><i class="fa-solid fa-list"></i> قائمة منفيست المسافرين</span>
                     <div>
-                        <button onclick="exportToExcel()" class="btn btn-success btn-sm fw-bold"><i class="fa-solid fa-file-excel"></i> طبع منفيست Excel</button>
+                        <button id="excelBtn" class="btn btn-success btn-sm fw-bold"><i class="fa-solid fa-file-excel"></i> طبع منفيست Excel</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -177,64 +175,76 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let passengers = [];
     let logoData = 'https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة';
 
-    window.onload = function() {
+    window.addEventListener('DOMContentLoaded', function() {
         let stored = localStorage.getItem('passengers_data');
-        if (stored) passengers = JSON.parse(stored);
+        if (stored) {
+            try { passengers = JSON.parse(stored); } catch(e) { passengers = []; }
+        }
         let storedLogo = localStorage.getItem('company_logo');
         if (storedLogo) logoData = storedLogo;
-        document.getElementById('companyLogo').src = logoData;
-        renderTable();
-    };
-
-    function uploadLogo(event) {
-        let reader = new FileReader();
-        reader.onload = function() {
-            logoData = reader.result;
-            document.getElementById('companyLogo').src = logoData;
-            localStorage.setItem('company_logo', logoData);
-        };
-        if(event.target.files[0]) {
-            reader.readAsDataURL(event.target.files[0]);
-        }
-    }
-
-    function addNewPassenger() {
-        let nameVal = document.getElementById('pName').value.trim();
-        let passVal = document.getElementById('pPassport').value.trim();
-        let sellVal = document.getElementById('pSellPrice').value;
-        let costVal = document.getElementById('pCostPrice').value;
-        let tripVal = document.getElementById('tripSelect').value;
-        let sourceVal = document.getElementById('pSource').value;
-
-        if (nameVal === "" || passVal === "") {
-            alert("يرجى كتابة اسم المسافر ورقم الجواز بصورة صحيحة!");
-            return;
-        }
-
-        let newPassenger = {
-            id: Date.now(),
-            trip: tripVal,
-            name: nameVal,
-            passport: passVal,
-            sell: sellVal,
-            cost: costVal,
-            source: sourceVal,
-            date: new Date().toLocaleDateString('ar-IQ')
-        };
-
-        passengers.push(newPassenger);
-        localStorage.setItem('passengers_data', JSON.stringify(passengers));
         
-        // تفريغ الحقول وإعادة تحديث الجدول
-        document.getElementById('pName').value = "";
-        document.getElementById('pPassport').value = "";
+        let imgEl = document.getElementById('companyLogo');
+        if(imgEl) imgEl.src = logoData;
+        
         renderTable();
-        alert("تم إضافة وحجز المسافر بنجاح!");
-    }
+
+        // ربط الأحداث برمجياً لتجاوز قيود متصفحات الكلاود
+        document.getElementById('submitBtn').addEventListener('click', function() {
+            let nameVal = document.getElementById('pName').value.trim();
+            let passVal = document.getElementById('pPassport').value.trim();
+            let sellVal = document.getElementById('pSellPrice').value;
+            let costVal = document.getElementById('pCostPrice').value;
+            let tripVal = document.getElementById('tripSelect').value;
+            let sourceVal = document.getElementById('pSource').value;
+
+            if (nameVal === "" || passVal === "") {
+                alert("يرجى كتابة اسم المسافر ورقم الجواز بصورة صحيحة!");
+                return;
+            }
+
+            let newPassenger = {
+                id: Date.now(),
+                trip: tripVal,
+                name: nameVal,
+                passport: passVal,
+                sell: sellVal,
+                cost: costVal,
+                source: sourceVal,
+                date: new Date().toLocaleDateString('ar-IQ')
+            };
+
+            passengers.push(newPassenger);
+            localStorage.setItem('passengers_data', JSON.stringify(passengers));
+            
+            document.getElementById('pName').value = "";
+            document.getElementById('pPassport').value = "";
+            renderTable();
+            alert("تم حجز المسافر وإضافته بنجاح!");
+        });
+
+        document.getElementById('tripSelect').addEventListener('change', renderTable);
+        document.getElementById('excelBtn').addEventListener('click', exportToExcel);
+        
+        let logoInput = document.getElementById('logoInput');
+        if(logoInput) {
+            logoInput.addEventListener('change', function(event) {
+                let reader = new FileReader();
+                reader.onload = function() {
+                    logoData = reader.result;
+                    document.getElementById('companyLogo').src = logoData;
+                    localStorage.setItem('company_logo', logoData);
+                };
+                if(event.target.files[0]) {
+                    reader.readAsDataURL(event.target.files[0]);
+                }
+            });
+        }
+    });
 
     function deletePassenger(id) {
         if (confirm("هل أنت متأكد من حذف هذا المسافر؟")) {
@@ -256,21 +266,33 @@
             totalSell += Number(p.sell);
             totalCost += Number(p.cost);
 
-            tbody.innerHTML += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td class="fw-bold">${p.name}</td>
-                    <td>${p.passport}</td>
-                    <td><span class="badge bg-info text-dark">رحلة ${p.trip}</span></td>
-                    <td class="text-success fw-bold">${Number(p.sell).toLocaleString()} د.ع</td>
-                    <td class="text-warning fw-bold">${Number(p.cost).toLocaleString()} د.ع</td>
-                    <td><small class="text-muted">${p.source}</small></td>
-                    <td class="no-print">
-                        <button onclick="printTicket(${p.id})" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-qrcode"></i> التذكرة</button>
-                        <button onclick="deletePassenger(${p.id})" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td class="fw-bold">${p.name}</td>
+                <td>${p.passport}</td>
+                <td><span class="badge bg-info text-dark">رحلة ${p.trip}</span></td>
+                <td class="text-success fw-bold">${Number(p.sell).toLocaleString()} د.ع</td>
+                <td class="text-warning fw-bold">${Number(p.cost).toLocaleString()} د.ع</td>
+                <td><small class="text-muted">${p.source}</small></td>
+                <td class="no-print"></td>
             `;
+
+            let tdOptions = tr.querySelector('.no-print');
+            
+            let btnTicket = document.createElement('button');
+            btnTicket.className = 'btn btn-outline-primary btn-sm me-1';
+            btnTicket.innerHTML = '<i class="fa-solid fa-qrcode"></i> التذكرة';
+            btnTicket.onclick = function() { printTicket(p.id); };
+            
+            let btnDelete = document.createElement('button');
+            btnDelete.className = 'btn btn-outline-danger btn-sm';
+            btnDelete.innerHTML = '<i class="fa-solid fa-trash"></i>';
+            btnDelete.onclick = function() { deletePassenger(p.id); };
+
+            tdOptions.appendChild(btnTicket);
+            tdOptions.appendChild(btnDelete);
+            tbody.appendChild(tr);
         });
 
         document.getElementById('statTodayPassengers').innerText = ${filtered.length} / 235;
@@ -330,6 +352,5 @@
         XLSX.writeFile(wb, Manifest_Trip_${selectedTrip}.xlsx);
     }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
