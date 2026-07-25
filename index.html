@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام حجز السفينة - البصرة / المحمرة</title>
-    <!-- Bootstrap CSS + FontAwesome + QR Code + Excel Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -39,25 +38,25 @@
     <div class="row mb-4 no-print">
         <div class="col-md-3">
             <div class="stat-card shadow-sm">
-                <small class="text-muted">إجمالي حجز اليوم</small>
+                <small class="text-muted">إجمالي حجز الرحلة</small>
                 <h4 class="fw-bold text-primary m-0" id="statTodayPassengers">0 / 235</h4>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stat-card shadow-sm" style="border-right-color: #198754;">
-                <small class="text-muted">إجمالي مبيعات اليوم (IQD)</small>
+                <small class="text-muted">إجمالي مبيعات الرحلة (IQD)</small>
                 <h4 class="fw-bold text-success m-0" id="statTodaySales">0 د.ع</h4>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stat-card shadow-sm" style="border-right-color: #ffc107;">
-                <small class="text-muted">إجمالي التسديد اليوم (IQD)</small>
+                <small class="text-muted">إجمالي التسديد (IQD)</small>
                 <h4 class="fw-bold text-warning m-0" id="statTodayCost">0 د.ع</h4>
             </div>
         </div>
         <div class="col-md-3">
             <div class="stat-card shadow-sm" style="border-right-color: #0dcaf0;">
-                <small class="text-muted">صافي أرباح اليوم</small>
+                <small class="text-muted">صافي أرباح الرحلة</small>
                 <h4 class="fw-bold text-info m-0" id="statTodayProfit">0 د.ع</h4>
             </div>
         </div>
@@ -69,14 +68,14 @@
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-primary text-white fw-bold"><i class="fa-solid fa-ticket"></i> حجز / تعديل تذكرة</div>
                 <div class="card-body">
-                    <form id="bookingForm" onsubmit="event.preventDefault(); savePassenger();">
+                    <div>
                         <input type="hidden" id="editPassengerId" value="">
                         
                         <div class="mb-2">
                             <label class="form-label fw-bold">اختر الرحلة وموعد السفر:</label>
-                            <select id="tripSelect" class="form-select" onchange="renderTable()" required>
-                                <option value="1">رحلة 1: البصرة ← المحمرة (08:00 صباحاً)</option>
-                                <option value="2">رحلة 2: المحمرة ← البصرة (11:00 صباحاً)</option>
+                            <select id="tripSelect" class="form-select" onchange="renderTable()">
+                                <option value="1">رحلة 1: البصرة ← المحمرة (04:00 عصراً - 2026/07/27)</option>
+                                <option value="2">رحلة 2: المحمرة ← البصرة (10:00 صباحاً - 2026/07/27)</option>
                                 <option value="3">رحلة 3: البصرة ← المحمرة (02:00 ظهراً)</option>
                                 <option value="4">رحلة 4: المحمرة ← البصرة (05:00 عصراً)</option>
                                 <option value="5">رحلة 5: البصرة ← المحمرة (08:00 مساءً)</option>
@@ -86,21 +85,21 @@
                         
                         <div class="mb-2">
                             <label class="form-label">اسم المسافر الثلاثي:</label>
-                            <input type="text" id="pName" class="form-control" placeholder="أدخل اسم المسافر" required>
+                            <input type="text" id="pName" class="form-control" placeholder="أدخل اسم المسافر">
                         </div>
                         <div class="mb-2">
                             <label class="form-label">رقم الجواز:</label>
-                            <input type="text" id="pPassport" class="form-control" placeholder="أدخل رقم الجواز" required>
+                            <input type="text" id="pPassport" class="form-control" placeholder="أدخل رقم الجواز">
                         </div>
 
                         <div class="row mb-3">
                             <div class="col">
                                 <label class="form-label">سعر البيع (IQD):</label>
-                                <input type="number" id="pSellPrice" class="form-control" value="35000" required>
+                                <input type="number" id="pSellPrice" class="form-control" value="35000">
                             </div>
                             <div class="col">
                                 <label class="form-label">سعر التسديد (IQD):</label>
-                                <input type="number" id="pCostPrice" class="form-control" value="25000" required>
+                                <input type="number" id="pCostPrice" class="form-control" value="25000">
                             </div>
                         </div>
 
@@ -113,9 +112,9 @@
                             </select>
                         </div>
 
-                        <button type="submit" id="submitBtn" class="btn btn-success w-100 fw-bold"><i class="fa-solid fa-plus"></i> تأكيد الحجز</button>
+                        <button type="button" onclick="savePassenger()" id="submitBtn" class="btn btn-success w-100 fw-bold"><i class="fa-solid fa-plus"></i> تأكيد الحجز</button>
                         <button type="button" id="cancelEditBtn" onclick="resetForm()" class="btn btn-secondary w-100 fw-bold mt-2" style="display:none;">إلغاء التعديل</button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -180,13 +179,23 @@
 </div>
 
 <script>
-    let passengers = JSON.parse(localStorage.getItem('passengers_data')) || [];
-    let logoData = localStorage.getItem('company_logo') || 'https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة';
+    let passengers = [];
+    let logoData = 'https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة';
 
-    window.onload = function() {
+    function loadInitialData() {
+        try {
+            let stored = localStorage.getItem('passengers_data');
+            if (stored) passengers = JSON.parse(stored);
+            let storedLogo = localStorage.getItem('company_logo');
+            if (storedLogo) logoData = storedLogo;
+        } catch (e) {
+            passengers = [];
+        }
         document.getElementById('companyLogo').src = logoData;
         renderTable();
-    };
+    }
+
+    window.onload = loadInitialData;
 
     function uploadLogo(event) {
         let reader = new FileReader();
@@ -195,27 +204,32 @@
             document.getElementById('companyLogo').src = logoData;
             localStorage.setItem('company_logo', logoData);
         };
-        reader.readAsDataURL(event.target.files[0]);
+        if(event.target.files[0]) {
+            reader.readAsDataURL(event.target.files[0]);
+        }
     }
 
     function savePassenger() {
         let nameInput = document.getElementById('pName').value.trim();
         let passportInput = document.getElementById('pPassport').value.trim();
+        let sellInput = document.getElementById('pSellPrice').value;
+        let costInput = document.getElementById('pCostPrice').value;
 
         if (!nameInput || !passportInput) {
-            alert('يرجى ملء جميع الحقول المطلوبة!');
+            alert('يرجى كتابة اسم المسافر ورقم الجواز بصورة صحيحة!');
             return;
         }
 
         let editId = document.getElementById('editPassengerId').value;
+        let tripVal = document.getElementById('tripSelect').value;
         
         let passengerData = {
             id: editId ? Number(editId) : Date.now(),
-            trip: document.getElementById('tripSelect').value,
+            trip: tripVal,
             name: nameInput,
             passport: passportInput,
-            sell: document.getElementById('pSellPrice').value,
-            cost: document.getElementById('pCostPrice').value,
+            sell: sellInput,
+            cost: costInput,
             source: document.getElementById('pSource').value,
             date: new Date().toLocaleDateString('ar-IQ')
         };
@@ -230,6 +244,7 @@
         localStorage.setItem('passengers_data', JSON.stringify(passengers));
         resetForm();
         renderTable();
+        alert('تم تأكيد الحجز بنجاح!');
     }
 
     function editPassenger(id) {
@@ -261,7 +276,7 @@
     }
 
     function deletePassenger(id) {
-        if (confirm('هل أنت تأكد من حذف هذا المسافر؟')) {
+        if (confirm('هل أنت متأكد من حذف هذا المسافر؟')) {
             passengers = passengers.filter(p => p.id !== id);
             localStorage.setItem('passengers_data', JSON.stringify(passengers));
             renderTable();
@@ -308,9 +323,12 @@
         let p = passengers.find(item => item.id === id);
         if(!p) return;
 
+        let tripText = p.trip === '1' ? 'رحلة 1: البصرة ← المحمرة (04:00 عصراً - 2026/07/27)' : 
+                       p.trip === '2' ? 'رحلة 2: المحمرة ← البصرة (10:00 صباحاً - 2026/07/27)' : رحلة ${p.trip};
+
         document.getElementById('tName').innerText = p.name;
         document.getElementById('tPassport').innerText = p.passport;
-        document.getElementById('tTrip').innerText = رحلة ${p.trip};
+        document.getElementById('tTrip').innerText = tripText;
         document.getElementById('tSource').innerText = p.source;
         document.getElementById('tPrice').innerText = Number(p.sell).toLocaleString();
         document.getElementById('tLogo').src = logoData;
