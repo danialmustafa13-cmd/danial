@@ -18,6 +18,27 @@
 </head>
 <body>
 
+<div id="loginPage" class="container" style="max-width:420px;margin-top:120px;">
+    <div class="card shadow-lg border-0">
+        <div class="card-body text-center p-5">
+
+            <h2 class="text-primary mb-4">
+                نظام حجز السفينة
+            </h2>
+
+            <input id="username" class="form-control mb-3" placeholder="اسم المستخدم">
+
+            <input id="password" type="password" class="form-control mb-4" placeholder="كلمة المرور">
+
+            <button class="btn btn-primary w-100" onclick="login()">
+                تسجيل الدخول
+            </button>
+
+        </div>
+    </div>
+</div>
+
+<div id="systemPage" style="display:none;">
 <div class="container-fluid py-4">
     
     <!-- الهيدر واللوجو -->
@@ -350,7 +371,24 @@ document.getElementById('statTodayProfit').innerText = (totalSell - totalCost).t
         let wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `منفيست_رحلة_${selectedTrip}`);
         XLSX.writeFile(wb, `Manifest_Trip_${selectedTrip}.xlsx`);
+  }
+  function login(){
+
+    if(
+        document.getElementById("username").value=="admin" &&
+        document.getElementById("password").value=="123456"
+    ){
+
+        document.getElementById("loginPage").style.display="none";
+        document.getElementById("systemPage").style.display="block";
+
+    }else{
+
+        alert("اسم المستخدم أو كلمة المرور غير صحيحة");
+
     }
+
+}  
 </script>
 </body>
 </html>
