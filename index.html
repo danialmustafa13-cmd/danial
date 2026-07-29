@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الحجز البحري - نبع البصرة / الأفق</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .header-logo { max-height: 80px; cursor: pointer; }
+        .ticket-box {
+            border: 0;
+            padding: 0;
+            background: #fff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 12px 35px rgba(0,0,0,.14);
+        }
+        .ticket-header {
+            background: linear-gradient(135deg, #084298, #0d6efd);
+            color: #fff;
+            padding: 22px;
+        }
+        .ticket-body { padding: 24px; }
+        .ticket-info {
+            border: 1px solid #e9ecef;
+            border-radius: 14px;
+            overflow: hidden;
+            text-align: right;
+        }
+        .ticket-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 10px 14px;
+            border-bottom: 1px solid #eef1f4;
+        }
+        .ticket-row:last-child { border-bottom: 0; }
+        .ticket-label { color: #6c757d; font-weight: 700; }
+        .ticket-value { font-weight: 800; color: #212529; }
+        .seat-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 92px;
+            height: 58px;
+            border-radius: 14px;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #664d03;
+            font-size: 26px;
+            font-weight: 900;
+        }
+        .ticket-footer {
+            background: #f8f9fa;
+            border-top: 1px dashed #adb5bd;
+            padding: 15px 22px;
+        }
+        .stat-card { background: #fff; border-radius: 10px; padding: 15px; border-right: 5px solid #0d6efd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        @media print {
+        body * { visibility: hidden !important; }
+        #ticketModal, #ticketModal * { visibility: visible !important; }
+        #ticketModal {
+            display: block !important;
+            position: absolute !important;
+            inset: 0 !important;
+            background: white !important;
+        }
+        #ticketModal .modal-dialog {
+            max-width: 700px !important;
+            margin: 0 auto !important;
+        }
+        #ticketModal .modal-content {
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+        .no-print { display: none !important; }
+    }
+    </style>
+</head>
+<body>
+
+<div id="loginPage" class="container" style="max-width:420px;margin-top:120px;">
+    <div class="card shadow-lg border-0">
+        <div class="card-body text-center p-5">
+
+            <h2 class="text-primary mb-4">
+                نظام حجز السفينة
+            </h2>
+
+            <input id="username" class="form-control mb-3" placeholder="اسم المستخدم">
+
+            <input id="password" type="password" class="form-control mb-4" placeholder="كلمة المرور">
+
+            <button class="btn btn-primary w-100" onclick="login()">
+                تسجيل الدخول
+            </button>
+
+        </div>
+    </div>
+</div>
+
+<div id="systemPage" style="display:none;">
+<div class="container-fluid py-4">
+    
+    <!-- الهيدر واللوجو -->
+    <div class="row bg-white p-3 shadow-sm rounded-3 mb-4 align-items-center">
+        <div class="col-md-2 text-center">
+            <label for="logoInput" style="cursor: pointer;">
+                <img id="companyLogo" src="https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة" class="header-logo rounded" title="اضغط لتغيير اللوجو">
+            </label>
+            <input type="file" id="logoInput" accept="image/*" style="display:none;">
+        </div>
+        <div class="col-md-10 text-center">
+            <h2 class="fw-bold m-0 text-primary">شركة نبع البصرة للسفر والسياحة / شركة الأفق للسفر والسياحة</h2>
+            <small class="text-muted fw-bold">سعة السفينة: 235 مسافر | نظام الحجز الإلكتروني الموحد</small>
+        </div>
+    </div>
+
+    <!-- كروت التقارير المالية والعدد -->
+    <div class="row mb-4 no-print">
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm">
+                <small class="text-muted">إجمالي حجز الرحلة</small>
+                <h4 class="fw-bold text-primary m-0" id="statTodayPassengers">0 / 235</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm" style="border-right-color: #198754;">
+                <small class="text-muted">إجمالي مبيعات الرحلة (IQD)</small>
+                <h4 class="fw-bold text-success m-0" id="statTodaySales">0 د.ع</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm" style="border-right-color: #ffc107;">
+                <small class="text-muted">إجمالي التسديد (IQD)</small>
+                <h4 class="fw-bold text-warning m-0" id="statTodayCost">0 د.ع</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm" style="border-right-color: #0dcaf0;">
+                <small class="text-muted">صافي أرباح الرحلة</small>
+                <h4 class="fw-bold text-info m-0" id="statTodayProfit">0 د.ع</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- استمارة إدخال الحجز -->
+        <div class="col-md-4 no-print">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-primary text-white fw-bold"><i class="fa-solid fa-ticket"></i> حجز تذكرة جديدة</div>
+                <div class="card-body">
+                    <div>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold">اتجاه الرحلة:</label>
+                            <select id="tripSelect" class="form-select">
+                                <option value="basra_to_mohammara">من البصرة إلى المحمرة</option>
+                                <option value="mohammara_to_basra">من المحمرة إلى البصرة</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-bold">وقت الرحلة:</label>
+                            <input type="time" id="tripTime" class="form-control" required>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-bold">تاريخ السفر:</label>
+                            <input type="date" id="travelDate" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label class="form-label">اسم المسافر الثلاثي:</label>
+                            <input type="text" id="pName" class="form-control" placeholder="أدخل اسم المسافر">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">رقم الجواز:</label>
+                            <input type="text" id="pPassport" class="form-control" placeholder="أدخل رقم الجواز">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label">سعر البيع (IQD):</label>
+                                <input type="number" id="pSellPrice" class="form-control" value="35000">
+                            </div>
+                            <div class="col">
+                                <label class="form-label">سعر التسديد (IQD):</label>
+                                <input type="number" id="pCostPrice" class="form-control" value="25000">
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-bold">شركة الحجز:</label>
+                            <select id="pSource" class="form-select">
+                                <option value="شركة نبع البصرة للسفر والسياحة">شركة نبع البصرة للسفر والسياحة</option>
+                                <option value="شركة الأفق للسفر والسياحة">شركة الأفق للسفر والسياحة</option>
+                                <option value="OTHER">شركة أخرى</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="otherCompanyWrap" style="display:none;">
+                            <label class="form-label fw-bold">اسم الشركة الأخرى:</label>
+                            <input type="text" id="otherCompanyName" class="form-control" placeholder="اكتب اسم شركة السفر والسياحة">
+                        </div>
+
+                        <button type="button" id="submitBtn" class="btn btn-success w-100 fw-bold py-2"><i class="fa-solid fa-plus"></i> تأكيد الحجز الآن</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- جدول المنفيست -->
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-bold"><i class="fa-solid fa-list"></i> قائمة منفيست المسافرين</span>
+                    <div>
+                        <button id="excelBtn" class="btn btn-success btn-sm fw-bold"><i class="fa-solid fa-file-excel"></i> طبع منفيست Excel</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم المسافر</th>
+                                    <th>رقم الجواز</th>
+                                    <th>المقعد</th>
+                                    <th>اتجاه ووقت الرحلة</th>
+                                    <th>تاريخ السفر</th>
+                                    <th>سعر البيع</th>
+                                    <th>سعر التسديد</th>
+                                    <th>شركة الحجز</th>
+                                    <th class="no-print">خيارات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="passengerList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة التذكرة للطباعة والباركود -->
+<div class="modal fade" id="ticketModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body p-0 text-center ticket-box">
+                <div class="ticket-header">
+                    <div id="ticketBranding">
+                        <img id="tLogo" src="" style="max-height:58px;max-width:150px;background:white;padding:5px;border-radius:10px;" class="mb-2">
+                        <h4 class="fw-bold mb-1">شركة نبع البصرة للسفر والسياحة / شركة الأفق للسفر والسياحة</h4>
+                    </div>
+                    <div id="genericTicketTitle" class="fw-bold fs-4" style="display:none;">تذكرة سفر بحرية</div>
+                    <div class="small opacity-75">تذكرة سفر بحرية مؤكدة</div>
+                </div>
+
+                <div class="ticket-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3 gap-3">
+                        <div class="text-end">
+                            <div class="text-muted small fw-bold">رقم المقعد</div>
+                            <div class="seat-badge"><span id="tSeat"></span></div>
+                        </div>
+                        <div class="text-start">
+                            <div class="text-muted small fw-bold">رقم التذكرة</div>
+                            <div id="tTicketId" class="fw-bold fs-5"></div>
+                        </div>
+                    </div>
+
+                    <div class="ticket-info">
+                        <div class="ticket-row">
+                            <span class="ticket-label">اسم المسافر</span>
+                            <span id="tName" class="ticket-value"></span>
+                        </div>
+                        <div class="ticket-row">
+                            <span class="ticket-label">رقم الجواز</span>
+                            <span id="tPassport" class="ticket-value"></span>
+                        </div>
+                        <div class="ticket-row">
+                            <span class="ticket-label">الرحلة وموعد السفر</span>
+                            <span id="tTrip" class="ticket-value"></span>
+                        </div>
+                        <div class="ticket-row">
+                            <span class="ticket-label">تاريخ السفر</span>
+                            <span id="tTravelDate" class="ticket-value"></span>
+                        </div>
+                        <div class="ticket-row">
+                            <span class="ticket-label">سعر التذكرة</span>
+                            <span class="ticket-value"><span id="tPrice"></span> د.ع</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 d-inline-block rounded-3 my-3 border">
+                        <div id="qrcode"></div>
+                    </div>
+                    <div class="small text-muted">امسح رمز QR بكاميرا الهاتف لقراءة بيانات التذكرة</div>
+                </div>
+
+                <div class="ticket-footer small text-muted">
+                    يرجى الحضور قبل موعد الانطلاق بوقتٍ كافٍ وإبراز الجواز الأصلي.
+                </div>
+            </div>
+            <div class="modal-footer no-print">
+                <button type="button" onclick="printTicketWindow()" class="btn btn-primary fw-bold"><i class="fa-solid fa-print"></i> طباعة / حفظ التذكرة PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://aibxpmnermglzzzkhrfw.supabase.co';
+const SUPABASE_KEY='sb_publishable_ejkaPW261kjJfxXNbM3b8A_jloCoecv';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let passengers=[];
+let logoData='https://via.placeholder.com/150x80?text=إضافة+لوجو+الشركة';
+let realtimeChannel=null;
+
+window.addEventListener('DOMContentLoaded',async()=>{
+  const storedLogo=localStorage.getItem('company_logo');
+  if(storedLogo) logoData=storedLogo;
+  document.getElementById('companyLogo').src=logoData;
+  const travelDateInput=document.getElementById('travelDate');
+  if(!travelDateInput.value) travelDateInput.value=new Date().toISOString().split('T')[0];
+  document.getElementById('submitBtn').addEventListener('click',addPassenger);
+  document.getElementById('tripSelect').addEventListener('change',renderTable);
+  const tripTimeInput=document.getElementById('tripTime');
+  if(!tripTimeInput.value) tripTimeInput.value=localStorage.getItem('last_trip_time')||'16:00';
+  tripTimeInput.addEventListener('change',()=>{localStorage.setItem('last_trip_time',tripTimeInput.value);renderTable();});
+  travelDateInput.addEventListener('change',renderTable);
+  document.getElementById('pSource').addEventListener('change',toggleOtherCompany);
+  toggleOtherCompany();
+  document.getElementById('excelBtn').addEventListener('click',exportToExcel);
+  document.getElementById('logoInput').addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader(); r.onload=()=>{logoData=r.result;document.getElementById('companyLogo').src=logoData;localStorage.setItem('company_logo',logoData)};r.readAsDataURL(f);
+  });
+  await loadPassengers();
+  startRealtime();
+});
+
+function mapRow(r){return {id:r.id,ticketId:r.ticket_id,seat:Number(r.seat_number),trip:String(r.trip),travelDate:r.travel_date||'',name:r.passenger_name,passport:r.passport_number,sell:Number(r.sell_price||0),cost:Number(r.cost_price||0),source:r.booking_company,date:r.booking_date||'',createdAt:r.created_at}}
+
+async function loadPassengers(showError=true){
+  const {data,error}=await db.from('passengers').select('*').order('created_at',{ascending:true});
+  if(error){console.error(error);if(showError) alert('تعذر تحميل الحجوزات من قاعدة البيانات. تأكد من الإنترنت.');return}
+  passengers=(data||[]).map(mapRow);renderTable();
+}
+
+function toggleOtherCompany(){
+  const isOther=document.getElementById('pSource').value==='OTHER';
+  document.getElementById('otherCompanyWrap').style.display=isOther?'block':'none';
+}
+
+function getTripKey(){
+  const direction=document.getElementById('tripSelect').value;
+  const time=document.getElementById('tripTime').value;
+  return direction+'|'+time;
+}
+
+function parseTripKey(value){
+  const raw=String(value||'');
+  const parts=raw.split('|');
+  const direction=parts[0];
+  const time=parts[1]||'';
+  let directionText;
+  if(direction==='basra_to_mohammara') directionText='من البصرة إلى المحمرة';
+  else if(direction==='mohammara_to_basra') directionText='من المحمرة إلى البصرة';
+  else {
+    const legacy={
+      '1':'من البصرة إلى المحمرة',
+      '2':'من المحمرة إلى البصرة',
+      '3':'من البصرة إلى المحمرة',
+      '4':'من المحمرة إلى البصرة',
+      '5':'من البصرة إلى المحمرة',
+      '6':'من المحمرة إلى البصرة'
+    };
+    directionText=legacy[direction]||('رحلة '+direction);
+  }
+  return {direction,time,directionText};
+}
+
+function formatTime12(value){
+  if(!value) return '-';
+  const [h,m]=String(value).split(':').map(Number);
+  if(Number.isNaN(h)||Number.isNaN(m)) return value;
+  const period=h<12?'صباحاً':'مساءً';
+  const hour=h%12||12;
+  return String(hour).padStart(2,'0')+':'+String(m).padStart(2,'0')+' '+period;
+}
+
+function isOwnCompany(source){
+  return source==='شركة نبع البصرة للسفر والسياحة' || source==='شركة الأفق للسفر والسياحة';
+}
+
+async function addPassenger(){
+  const btn=document.getElementById('submitBtn');
+  const name=document.getElementById('pName').value.trim();
+  const passport=document.getElementById('pPassport').value.trim().toUpperCase();
+  const sell=Number(document.getElementById('pSellPrice').value||0);
+  const cost=Number(document.getElementById('pCostPrice').value||0);
+  const trip=getTripKey();
+  const travelDate=document.getElementById('travelDate').value;
+  const sourceChoice=document.getElementById('pSource').value;
+  const otherCompany=document.getElementById('otherCompanyName').value.trim();
+  const company=sourceChoice==='OTHER' ? otherCompany : sourceChoice;
+  if(!name||!passport){alert('يرجى كتابة اسم المسافر ورقم الجواز بصورة صحيحة!');return}
+  if(!travelDate){alert('يرجى اختيار تاريخ السفر.');return}
+  if(!document.getElementById('tripTime').value){alert('يرجى اختيار وقت الرحلة.');return}
+  if(sourceChoice==='OTHER'&&!otherCompany){alert('يرجى كتابة اسم الشركة الأخرى.');return}
+  btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> جاري الحجز...';
+  try{
+    for(let attempt=0;attempt<6;attempt++){
+      const {data:rows,error:e1}=await db.from('passengers').select('seat_number').eq('trip',trip).eq('travel_date',travelDate);
+      if(e1) throw e1;
+      const used=new Set((rows||[]).map(x=>Number(x.seat_number)));
+      let seat=null;for(let i=1;i<=235;i++){if(!used.has(i)){seat=i;break}}
+      if(seat===null){alert('اكتملت سعة الرحلة: جميع المقاعد محجوزة.');return}
+      const payload={ticket_id:'TKT-'+Date.now()+'-'+Math.floor(Math.random()*1000),trip,travel_date:travelDate,passenger_name:name,passport_number:passport,seat_number:seat,sell_price:sell,cost_price:cost,booking_company:company,booking_date:new Date().toLocaleDateString('ar-IQ')};
+      const {data,error}=await db.from('passengers').insert(payload).select().single();
+      if(!error){passengers.push(mapRow(data));document.getElementById('pName').value='';document.getElementById('pPassport').value='';renderTable();alert('تم الحجز بنجاح! رقم المقعد: '+data.seat_number);return}
+      if(error.code!=='23505') throw error;
+    }
+    alert('صار حجز متزامن من المكتب الآخر. اضغط تأكيد الحجز مرة ثانية.');
+    await loadPassengers(false);
+  }catch(err){console.error(err);alert('فشل الحجز. تأكد من الإنترنت ثم حاول مرة أخرى.')}finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-plus"></i> تأكيد الحجز الآن'}
+}
+
+async function deletePassenger(id){
+  if(!confirm('هل أنت متأكد من حذف هذا المسافر؟')) return;
+  const {error}=await db.from('passengers').delete().eq('id',id);
+  if(error){console.error(error);alert('تعذر حذف الحجز.');return}
+  passengers=passengers.filter(p=>Number(p.id)!==Number(id));renderTable();
+}
+
+function startRealtime(){
+  realtimeChannel=db.channel('passengers-live').on('postgres_changes',{event:'*',schema:'public',table:'passengers'},()=>loadPassengers(false)).subscribe();
+}
+
+function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+function renderTable(){
+  const tbody=document.getElementById('passengerList');
+  const trip=getTripKey();
+  const travelDate=document.getElementById('travelDate').value;
+  tbody.innerHTML='';
+  const filtered=passengers
+    .filter(p=>String(p.trip)===trip && String(p.travelDate)===String(travelDate))
+    .sort((a,b)=>a.seat-b.seat);
+  let ts=0,tc=0;
+  filtered.forEach((p,i)=>{
+    ts+=Number(p.sell);tc+=Number(p.cost);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td class="fw-bold">${esc(p.name)}</td><td>${esc(p.passport)}</td><td><span class="badge bg-warning text-dark fs-6">${p.seat}</span></td><td><span class="badge bg-info text-dark">${esc(parseTripKey(p.trip).directionText)}<br>${esc(formatTime12(parseTripKey(p.trip).time))}</span></td><td>${formatDate(p.travelDate)}</td><td class="text-success fw-bold">${Number(p.sell).toLocaleString('ar-IQ')} د.ع</td><td class="text-warning fw-bold">${Number(p.cost).toLocaleString('ar-IQ')} د.ع</td><td><small class="text-muted">${esc(p.source)}</small></td><td class="no-print"></td>`;
+    const td=tr.querySelector('.no-print');
+    const t=document.createElement('button');t.className='btn btn-outline-primary btn-sm me-1';t.innerHTML='<i class="fa-solid fa-qrcode"></i> التذكرة';t.onclick=()=>printTicket(p.id);
+    const d=document.createElement('button');d.className='btn btn-outline-danger btn-sm';d.innerHTML='<i class="fa-solid fa-trash"></i>';d.onclick=()=>deletePassenger(p.id);
+    td.append(t,d);tbody.appendChild(tr)
+  });
+  document.getElementById('statTodayPassengers').innerText=filtered.length+' / 235';
+  document.getElementById('statTodaySales').innerText=ts.toLocaleString('ar-IQ')+' د.ع';
+  document.getElementById('statTodayCost').innerText=tc.toLocaleString('ar-IQ')+' د.ع';
+  document.getElementById('statTodayProfit').innerText=(ts-tc).toLocaleString('ar-IQ')+' د.ع';
+}
+
+function formatDate(value){
+  if(!value) return '-';
+  const parts=String(value).split('-');
+  return parts.length===3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : value;
+}
+
+function printTicket(id){
+  const p=passengers.find(x=>Number(x.id)===Number(id));if(!p)return;
+  const parsedTrip=parseTripKey(p.trip);
+  const tripText=parsedTrip.directionText+(parsedTrip.time?' - '+formatTime12(parsedTrip.time):'');
+  tTicketId.innerText=p.ticketId||('TKT-'+p.id);
+  tSeat.innerText=p.seat||'-';
+  tName.innerText=p.name;
+  tPassport.innerText=p.passport;
+  tTrip.innerText=tripText;
+  tTravelDate.innerText=formatDate(p.travelDate);
+  tPrice.innerText=Number(p.sell).toLocaleString('ar-IQ');
+  const own=isOwnCompany(p.source);
+  document.getElementById('ticketBranding').style.display=own?'block':'none';
+  document.getElementById('genericTicketTitle').style.display=own?'none':'block';
+  tLogo.src=logoData;
+  qrcode.innerHTML='';
+  new QRCode(qrcode,{
+    text:'TICKET:'+(p.ticketId||('TKT-'+p.id))+
+         '|PASSPORT:'+String(p.passport).trim().toUpperCase()+
+         '|TRIP:'+p.trip+
+         '|TRAVEL_DATE:'+p.travelDate+
+         '|SEAT:'+(p.seat||''),
+    width:260,height:260,colorDark:'#000000',colorLight:'#ffffff',
+    correctLevel:QRCode.CorrectLevel.M
+  });
+  new bootstrap.Modal(document.getElementById('ticketModal')).show();
+}
+
+function printTicketWindow(){
+  const ticket=document.querySelector('#ticketModal .ticket-box');if(!ticket){alert('لم يتم العثور على التذكرة');return}
+  const canvas=document.querySelector('#qrcode canvas'),img=document.querySelector('#qrcode img');if(canvas&&!img){const i=document.createElement('img');i.src=canvas.toDataURL('image/png');i.width=260;i.height=260;canvas.replaceWith(i)}
+  const w=window.open('','_blank','width=850,height=900');if(!w){alert('اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return}
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>طباعة التذكرة</title><style>body{font-family:Arial,Tahoma,sans-serif;background:#fff;margin:0;padding:25px}.ticket{max-width:700px;margin:auto;border-radius:18px;overflow:hidden;text-align:center;box-shadow:0 0 0 1px #dee2e6}.ticket-header{background:#0d6efd;color:#fff;padding:20px}.ticket-body{padding:22px}.ticket-info{border:1px solid #dee2e6;border-radius:12px;overflow:hidden}.ticket-row{display:flex;justify-content:space-between;gap:15px;padding:10px 14px;border-bottom:1px solid #e9ecef}.ticket-row:last-child{border-bottom:0}.ticket-label{color:#6c757d;font-weight:bold}.ticket-value{font-weight:bold}.seat-badge{display:inline-flex;align-items:center;justify-content:center;min-width:90px;height:56px;border:2px solid #ffc107;border-radius:12px;font-size:26px;font-weight:bold}.ticket-footer{background:#f8f9fa;border-top:1px dashed #adb5bd;padding:14px}.ticket img{max-width:260px;height:auto}#qrcode{display:flex;justify-content:center;margin:18px 0}@page{size:A4;margin:12mm}</style></head><body><div class="ticket">${ticket.innerHTML}</div><script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);w.document.close();
+}
+
+function exportToExcel(){
+  const trip=getTripKey();
+  const travelDate=document.getElementById('travelDate').value;
+  const f=passengers
+    .filter(p=>String(p.trip)===trip && String(p.travelDate)===String(travelDate))
+    .sort((a,b)=>a.seat-b.seat);
+  if(!f.length){alert('لا يوجد مسافرين في هذه الرحلة بهذا التاريخ لتصديرهم!');return}
+  const data=f.map((p,i)=>({
+    'ت':i+1,
+    'اسم المسافر':p.name,
+    'رقم الجواز':p.passport,
+    'رقم المقعد':Number(p.seat),
+    'اتجاه الرحلة':parseTripKey(p.trip).directionText,
+    'وقت الرحلة':formatTime12(parseTripKey(p.trip).time),
+    'تاريخ السفر':formatDate(p.travelDate),
+    'سعر البيع (IQD)':Number(p.sell),
+    'سعر التسديد (IQD)':Number(p.cost),
+    'شركة الحجز':p.source,
+    'تاريخ الحجز':p.date
+  }));
+  const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();
+  const parsed=parseTripKey(trip);
+  const routeCode=parsed.direction==='basra_to_mohammara'?'Basra_to_Mohammara':'Mohammara_to_Basra';
+  const safeTime=(parsed.time||'time').replace(':','-');
+  XLSX.utils.book_append_sheet(wb,ws,`منفيست_${safeTime}_${travelDate}`.slice(0,31));
+  XLSX.writeFile(wb,`Manifest_${routeCode}_${safeTime}_${travelDate}.xlsx`)
+}
+
+function login(){if(username.value==='admin'&&password.value==='123456'){loginPage.style.display='none';systemPage.style.display='block';renderTable()}else alert('اسم المستخدم أو كلمة المرور غير صحيحة')}
+</script>
+</body>
+</html>
